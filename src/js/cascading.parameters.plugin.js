@@ -1,6 +1,5 @@
 (function ($) {
     $.CascadingBirtParameters = function (userOptions) {
-
         var defaults = {
                 report:          null,
                 parametersDivID: null,
@@ -22,8 +21,8 @@
 
         plugin.init();
 
-        plugin.downloadCascadingParameters = function() {
-            $('#'+options.parametersDivID).hide();
+        plugin.downloadCascadingParameters = function(changedvalues) {
+            //$('#'+options.parametersDivID).hide();
             var map = {};
 
             var myParameters = new actuate.Parameter(options.parametersDivID);
@@ -32,12 +31,11 @@
             myParameters.submit(function() {
                 myParameters.downloadParameters(function(test) {
                     var reportNameValuePair = new actuate.parameter.NameValuePair(test);
-                    //console.log(reportNameValuePair);
                     for(i=0; i<reportNameValuePair.getName().length; i++) {
                         var obj = new Object(reportNameValuePair.getName()[i]['_']);
 
                         var nameValueList = {
-                            names: [],
+                            names:  [],
                             values: []
                         };
 
@@ -78,19 +76,23 @@
                     for(var key2 in map) {
                         var parameterInput = $('#'+options.parameterInputMap[key2]);
                         var currentValue  = map[key2]['currentValue'];
-                        //var currentName   = map[key2]
                         var nameValueList1 = map[key2]['nameValueList'];
                         var metaData      = map[key2]['metadata'];
 
                         for(i=0;i<nameValueList1.names.length;i++){
-                                //console.log(options.parameterInputMap[key2]);
                                 parameterInput.append($('<option>', {
                                     value: nameValueList1.values[i],
                                     text: nameValueList1.names[i]
                                 }
                             ));
                         }
-                        parameterInput.val(currentValue);
+                        if(changedvalues==null){
+                            parameterInput.val(currentValue);
+                        }else{
+                            for(i=0; i<changedvalues.length;i++) {
+                                $('#' + options.parameterInputMap[changedvalues[i]['_name']]).val(changedvalues[i]['_value']);
+                            }
+                        }
                     }
                 });
             });
