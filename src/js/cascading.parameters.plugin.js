@@ -1,101 +1,109 @@
 (function ($) {
-    $.CascadingBirtParameters = function (userOptions) {
+    $.cascadingBirtParameters = function (userOptions) {
         var defaults = {
-                report:          null,
-                parametersDivID: null,
-                designName: null,
-                parameterInputMap: {
-                    inputName: [],
-                    parameterName: []
-                }
+                username:         'Administrator',
+                password:         '',
+                parameterID:      'parameters1',
+                parameters:       null,
+                rptdesign:        '/Applications/BIRT Sample App/Report Designs/Product Orders by Customer.rptdesign;1',
+                actuateLibraries: 'parameter',
+                reqOpts:          null,
+                actOpts:          null,
+                repoType:         'Enterprise',
+                volume:           'Default Volume',
+                parameterValues:  null,
+                iportal:          'http://ihub.demoimage.com:8700/iportal/',
+                initCallback:     null
             },
             plugin  = this,
             options = userOptions || {};
 
 
         plugin.init = function () {
-            actuate.load("parameter");
             var settings = $.extend({}, defaults, options);
             $.data(document, 'CascadingBirtParameters', settings);
+            actuate.load('parameter');
+            plugin.setReqOpts();
+            $('#'+settings.parameterID).hide();
+            plugin.actInit();
+        };
+
+        plugin.setReqOpts = function() {
+            plugin.reqOpts = new actuate.RequestOptions();
+            plugin.reqOpts.setRepositoryType(options.repoType);
+            plugin.reqOpts.setVolume(options.volume);
+            plugin.reqOpts.setCustomParameters(options.customParams);
+        };
+
+        plugin.actInit = function() {
+            actuate.initialize(options.iportal, options.reqOpts == undefined ? null : options.reqOpts, options.username, options.password, plugin.initReport);
+        };
+
+        plugin.initReport = function() {
+            options.parameters = new actuate.Parameter(options.parameterID);
+            options.parameters.setReportName(options.rptdesign);
+            options.parameters.submit(function() {
+                plugin.downloadParameterValues();
+            });
+        };
+
+        plugin.downloadParameterValues = function() {
+            var downloadedParameters = {
+            };
+
+            options.parameters.downloadParameters(function(vv) {
+                var downloadedParameters = {};
+                for(var i=0; i<vv.length; i++) {
+                    var q = {
+                        defaultValue: vv[i].getDefaultValue(),
+                        names: new Array(),
+                        values: new Array()
+                    };
+                    for(var j=0; j<vv[i].getSelectNameValueList().length; j++) {
+                        var pair = vv[i].getSelectNameValueList();
+                        q.names.push(pair[j].getName());
+                        q.values.push(pair[j].getValue());
+                    }
+                    downloadedParameters[i] = q;
+                }
+
+                options.initCallback(downloadedParameters);
+            });
+        }
+
+        plugin.performCascade = function(newValues) {
+            options.parameters.downloadParameters(function(v){
+                var zz = new Array();
+
+                for(var key in newValues) {
+                    var currentValue = newValues[key].value;
+
+                    if(currentValue != null) {
+                        var currentValue = v[key];
+                        currentValue.setDefaultValue(newValues[key].value);
+                        currentValue.setDefaultValueIsNull(false);
+                        zz.push(currentValue);
+                    }else{
+                        var currentValue = v[key];
+                        currentValue.setDefaultValue(null);
+                        currentValue.setDefaultValueIsNull(true);
+                        zz.push(currentValue);
+                    }
+                }
+
+                options.parameters.overwriteParameterDefProperties(zz);
+
+                var r = options.parameters.downloadParameters(function(nn) {
+                    var s = options.parameters.renderContent(nn, function() {
+                        options.parameterValues = plugin.downloadParameterValues();
+                    });
+                });
+            });
         };
 
         plugin.init();
 
         plugin.downloadCascadingParameters = function(changedvalues) {
-            //$('#'+options.parametersDivID).hide();
-            var map = {};
-
-            var myParameters = new actuate.Parameter(options.parametersDivID);
-                myParameters.setReportName(options.designName);
-
-            myParameters.submit(function() {
-                myParameters.downloadParameters(function(test) {
-                    var reportNameValuePair = new actuate.parameter.NameValuePair(test);
-                    for(i=0; i<reportNameValuePair.getName().length; i++) {
-                        var obj = new Object(reportNameValuePair.getName()[i]['_']);
-
-                        var nameValueList = {
-                            names:  [],
-                            values: []
-                        };
-
-                        for(j=0; j<obj['_selectNameValueList'].length;j++){
-                            var current = obj['_selectNameValueList'][j]['_'];
-                            nameValueList.names.push(current['_name']);
-                            nameValueList.values.push(current['_value']);
-                        }
-
-
-                        map[obj['_name']] = {
-                            metadata: {
-                                cascadingParentName: obj['_cascadingParentName'],
-                                columnType: obj['_columnType'],
-                                controlType: obj['_controlType'],
-                                dataType: obj['_dataType'],
-                                defaultValue: obj['_defaultValue'],
-                                displayName: obj['_displayName'],
-                                group: obj['_group'],
-                                groupPromptText: obj['_groupPromptText'],
-                                helpText: obj['_helpText'],
-                                isAdHoc: obj['_isAdHoc'],
-                                isDynamicSelectionList: obj['_isDynamicSelectionList'],
-                                isHidden: obj['_isHidden'],
-                                isPassword: obj['_isPassword'],
-                                isRequired: obj['_isRequired']
-                            },
-                            currentValue: obj['_currentValue'],
-                            currentName: obj['_currentName'],
-                            nameValueList: nameValueList
-                        };
-                    }
-
-                    for(var key1 in options.parameterInputMap) {
-                        $('#'+options.parameterInputMap[key1]).empty();
-                    }
-
-                    for(var key2 in map) {
-                        var parameterInput = $('#'+options.parameterInputMap[key2]);
-                        var currentValue  = map[key2]['currentValue'];
-                        var nameValueList1 = map[key2]['nameValueList'];
-                        var metaData      = map[key2]['metadata'];
-
-                        for(i=0;i<nameValueList1.names.length;i++){
-                                parameterInput.append($('<option>', {
-                                    value: nameValueList1.values[i],
-                                    text: nameValueList1.names[i]
-                                }
-                            ));
-                        }
-                        if(changedvalues==null){
-                            parameterInput.val(currentValue);
-                        }else{
-                            for(i=0; i<changedvalues.length;i++) {
-                                $('#' + options.parameterInputMap[changedvalues[i]['_name']]).val(changedvalues[i]['_value']);
-                            }
-                        }
-                    }
-                });
-            });
         };
 
         return this;

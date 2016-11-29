@@ -1,23 +1,67 @@
 <!doctype html>
 <html class="no-js" lang="">
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="x-ua-compatible" content="ie=edge">
-        <title></title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <script src="js/jquery.min.js"></script>
-        <script src="http://ihub.demoimage.com:8700/iportal/jsapi"></script>
-        <script src="js/cascading.parameters.plugin.js"></script>
-        <script src="js/birt.js"></script>
-        <script>
-        </script>
-    </head>
-    <body>
-    <div id="tester"></div>
-    <select id="CountryInput"></select><br/>
-    <select id="CustomerInput"></select><br/>
-        <div id="myDiv"></div>
-        <div id="container1"></div>
-    </body>
+<head>
+    <title></title>
+    <script src="js/jquery-3.1.0.min.js"></script>
+    <script src="http://ihub.demoimage.com:8700/iportal/jsapi"></script>
+    <script src="js/cascading.parameters.plugin.js"></script>
+    <script>
+        $(document).ready(function() {
+            var cascadingParameters = $.cascadingBirtParameters({
+                username:         'Administrator',
+                password:         '',
+                parameterID:      'parameters1',
+                parameters:       null,
+                rptdesign:        '/Applications/BIRT Sample App/Report Designs/Product Orders by Customer.rptdesign;1',
+                actuateLibraries: 'parameter',
+                reqOpts:          null,
+                actOpts:          null,
+                repoType:         'Enterprise',
+                volume:           'Default Volume',
+                parameterValues:  null,
+                iportal:          'http://ihub.demoimage.com:8700/iportal/',
+                initCallback:  function(pValues) {
+                    for(var keys in pValues) {
+                        for(var i=0; i<pValues[keys].names.length; i++) {
+                            $('#parameter'+keys).append(new Option(pValues[keys].names[i], pValues[keys].values[i]));
+                        };
+                        $('#parameter'+keys).val(pValues[keys].defaultValue);
+                    }
+                }
+            });
+
+            $('.parameterGroup1').change(function (){
+                var changedID = $(this).attr('id');
+                var newValues = {
+                    0: {
+                        value: null
+                    },
+                    1: {
+                        value: null
+                    }
+                }
+
+                if(changedID == 'parameter0') {
+                    newValues['0'].value = $(this).val();
+                    // do nothing beyond this parameter
+                    // clear and execute
+                    $('.parameterGroup1').empty();
+                    cascadingParameters.performCascade(newValues);
+                }else if(changedID == 'parameter1') {
+                    newValues['0'].value = $('#parameter0').val();
+                    newValues['1'].value = $(this).val();
+                    // do nothing beyond this parameter
+                    // do not clear because we're the last parameter
+                    cascadingParameters.performCascade(newValues);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+<div id="parameters"></div>
+<select class="parameterGroup1" id="parameter0"></select><br/>
+<select class="parameterGroup1" id="parameter1"></select><br/>
+<div id='parameters1'></div>
+</body>
 </html>
